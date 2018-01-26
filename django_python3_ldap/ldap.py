@@ -137,7 +137,11 @@ def connection(**kwargs):
     password = None
     if kwargs:
         password = kwargs.pop("password")
-        username = format_username(kwargs)
+        #username = format_username(kwargs)
+        try:
+            username = kwargs.pop("binddn")
+        except:
+            username = format_username(kwargs)
     # Configure the connection.
     if settings.LDAP_AUTH_USE_TLS:
         auto_bind = ldap3.AUTO_BIND_TLS_BEFORE_BIND
@@ -173,7 +177,8 @@ def connection(**kwargs):
         User = get_user_model()
         try:
             c.rebind(
-                user=format_username({User.USERNAME_FIELD: settings.LDAP_AUTH_CONNECTION_USERNAME}),
+                # user=format_username({User.USERNAME_FIELD: settings.LDAP_AUTH_CONNECTION_USERNAME}),
+                user=settings.LDAP_AUTH_CONNECTION_USERNAME,
                 password=settings.LDAP_AUTH_CONNECTION_PASSWORD,
             )
         except LDAPException as ex:
