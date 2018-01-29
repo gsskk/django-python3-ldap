@@ -10,7 +10,6 @@ from django.contrib.auth import get_user_model
 from django_python3_ldap.conf import settings
 from django_python3_ldap.utils import import_func, format_search_filter
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -137,7 +136,7 @@ def connection(**kwargs):
     password = None
     if kwargs:
         password = kwargs.pop("password")
-        #username = format_username(kwargs)
+        # username = format_username(kwargs)
         try:
             username = kwargs.pop("binddn")
         except:
@@ -156,8 +155,10 @@ def connection(**kwargs):
                 get_info=ldap3.NONE,
                 connect_timeout=settings.LDAP_AUTH_CONNECT_TIMEOUT,
             ),
-            user=username,
-            password=password,
+            #user=username,
+            #password=password,
+            user=settings.LDAP_AUTH_CONNECTION_USERNAME,
+            password=settings.LDAP_AUTH_CONNECTION_PASSWORD,
             auto_bind=auto_bind,
             raise_exceptions=True,
             receive_timeout=settings.LDAP_AUTH_RECEIVE_TIMEOUT,
@@ -166,20 +167,27 @@ def connection(**kwargs):
         logger.warning("LDAP connect failed: {ex}".format(ex=ex))
         yield None
         return
-    # If the settings specify an alternative username and password for querying, rebind as that.
-    if (
-        (settings.LDAP_AUTH_CONNECTION_USERNAME or settings.LDAP_AUTH_CONNECTION_PASSWORD) and
-        (
-            settings.LDAP_AUTH_CONNECTION_USERNAME != username or
-            settings.LDAP_AUTH_CONNECTION_PASSWORD != password
-        )
-    ):
+
+    # Rebind as login user.
+    if ( settings.LDAP_AUTH_CONNECTION_USERNAME != username ):
+        # Search login user.
+        if c.search(
+            search_base=settings.LDAP_AUTH_SEARCH_BASE,
+            search_filter=format_search_filter(kwargs),
+            search_scope=ldap3.SUBTREE,
+            size_limit=1,
+        ):
+            username=c.response[0]['dn']
+            #print username
+
         User = get_user_model()
         try:
             c.rebind(
                 # user=format_username({User.USERNAME_FIELD: settings.LDAP_AUTH_CONNECTION_USERNAME}),
-                user=settings.LDAP_AUTH_CONNECTION_USERNAME,
-                password=settings.LDAP_AUTH_CONNECTION_PASSWORD,
+                # user=settings.LDAP_AUTH_CONNECTION_USERNAME,
+                # password=settings.LDAP_AUTH_CONNECTION_PASSWORD,
+                user=username,
+                password=password,
             )
         except LDAPException as ex:
             logger.warning("LDAP rebind failed: {ex}".format(ex=ex))
